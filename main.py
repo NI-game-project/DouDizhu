@@ -74,7 +74,7 @@ train_every = 1
 log_dir = './experiments/doudizhu_dqn_result/'
 
 # Set a global seed
-set_global_seed(0)
+set_global_seed(42)
 
 # Initialize a global step
 global_step = tf.Variable(0, name='global_step', trainable=False)
