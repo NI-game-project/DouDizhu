@@ -134,6 +134,19 @@ class DQNAgent(object):
         state_batch, action_batch, reward_batch, next_state_batch, done_batch = self.memory.sample()
         
         # Calculate q values and targets (Double DQN)
+        '''
+        target = self.q_estimator.predict(state)
+        target_next = self.q_estimator.predict(next_state_batch)
+        target_val = self.target_estimator(next_state_batch)
+
+        a = np.argmax(target_next[i])
+
+        target[i][action[i]] = reward[i] + self.gamma * np.amax(target_val[i][a])
+        '''
+        
+
+
+
         q_values_next = self.q_estimator.predict(next_state_batch)
         best_actions = np.argmax(q_values_next, axis=1)
 
@@ -143,6 +156,9 @@ class DQNAgent(object):
 
         state_batch = np.array(state_batch)
 
+        self.q_estimator.fit(state_batch,target_batch, batch_size= self.batch_size, verbose=0)
+
+        '''
         #loss_function = keras.losses.Huber()
         optimizer = Adam(lr= self.learning_rate)
 
@@ -156,10 +172,10 @@ class DQNAgent(object):
             
             grads = tape.gradient(loss, self.q_estimator.trainable_variables)
             optimizer.apply_gradients(zip(grads, self.q_estimator.trainable_variables))
-        
-        if self.total_t % 30 == 0:
+        '''
+        #if self.total_t % 30 == 0:
 
-            print('INFO step {}, rl-loss: {}'.format(self.total_t, loss))
+            #print('INFO step {}, rl-loss: {}'.format(self.total_t, loss))
 
 
         # Update the target estimator
