@@ -51,8 +51,8 @@ class DQNAgent(object):
 
     # TODO: I dont know what values work here Georg
     def __init__(self,
-                 replay_memory_size=1000,
-                 replay_memory_init_size=1000,
+                 replay_memory_size=20000,
+                 replay_memory_init_size=100,
                  update_target_estimator_every=1000,
                  discount_factor=0.99,
                  epsilon_start=1.0,
@@ -63,7 +63,7 @@ class DQNAgent(object):
                  state_shape=None,
                  train_every=1,
                  mlp_layers=None,
-                 learning_rate=0.00005):
+                 learning_rate=0.0001):
 
         self.use_raw = False
         self.replay_memory_init_size = replay_memory_init_size
@@ -144,14 +144,30 @@ class DQNAgent(object):
         state_batch = np.array(state_batch)
 
         self.q_estimator.fit(state_batch,target_batch, batch_size= self.batch_size, verbose=0)
+        '''
+        optimizer = Adam(lr=self.learning_rate)
+        with tf.GradientTape() as tape:
 
+            predictions = self.q_estimator(state_batch)
 
+            # Get the predictions for the chosen actions only
+            gather_indices = tf.range(self.batch_size) * tf.shape(predictions)[1] + action_batch
+            action_predictions = tf.gather(tf.reshape(predictions, [-1]), gather_indices)
 
+            # Calculate the loss
+            losses = tf.math.squared_difference(target_batch, action_predictions)
+            loss = tf.reduce_mean(losses)
+
+            grads = tape.gradient(loss, self.q_estimator.trainable_variables)
+            optimizer.apply_gradients(zip(grads, self.q_estimator.trainable_variables))
+
+        '''
         # Update the target estimator
         if self.train_t % self.update_target_estimator_every == 0:
             
             self.target_estimator.set_weights(self.q_estimator.get_weights())
             print("\nINFO - Copied model parameters to target network.")
+            #print(loss)
 
         self.train_t += 1
 
@@ -164,9 +180,10 @@ class DQNAgent(object):
 
         input_x = Input(state_shape)
         x = Flatten()(input_x)
-        x = Dense(100,activation='relu')(x)
-        x = Dense(100,activation='relu')(x)
-        output = Dense(action_num,activation='softmax')(x)
+        x = keras.layers.BatchNormalization()(x)
+        x = Dense(512,activation='relu')(x)
+        x = Dense(512,activation='relu')(x)
+        output = Dense(action_num)(x)
 
         network = keras.Model(inputs = input_x, outputs=output)
         network.compile(loss='mse', optimizer=Adam(lr=learning_rate))

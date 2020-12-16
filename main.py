@@ -35,10 +35,13 @@ This is a modified agent by Georg which uses tensorflow 2.3.0, keras 2.4.3, nump
 
 
 import tensorflow as tf
+import keras
 import os
 
 
 import agents.dqn_agent
+import agents.actor_critic
+import doudizhu_rule_models
 import agents.random_agent as random_agent
 from utils import set_global_seed, tournament
 import logger
@@ -51,7 +54,7 @@ import doudizhu
 config = {  'allow_step_back':True,
             'allow_raw_data': True, 
             'record_action': True,
-            'seed': 0,
+            'seed': 42,
             'single_agent_mode': False,
             'active_player': True}
 
@@ -62,9 +65,9 @@ eval_env = doudizhu.DoudizhuEnv(config)
 # Set the iterations numbers and how frequently we evaluate the performance
 
 # TODO: These are just dummy numbers Georg
-evaluate_every = 5
-evaluate_num = 5
-episode_num = 100
+evaluate_every = 10
+evaluate_num = 10
+episode_num = 1000
 memory_init_size = 1000
 
 # Train the agent every X steps
@@ -74,7 +77,7 @@ train_every = 1
 log_dir = './experiments/doudizhu_dqn_result/'
 
 # Set a global seed
-set_global_seed(42)
+set_global_seed(0)
 
 # Initialize a global step
 global_step = tf.Variable(0, name='global_step', trainable=False)
@@ -84,10 +87,17 @@ global_step = tf.Variable(0, name='global_step', trainable=False)
 # In this dummy example only dummy agents will play against each other
 
 
-agent = agents.dqn_agent.DQNAgent(action_num=eval_env.action_num) #also a random agent for now Georg
+#agent = agents.dqn_agent.DQNAgent(action_num=eval_env.action_num) #also a random agent for now Georg
 random_agent = random_agent.RandomAgent(action_num=eval_env.action_num)
-env.set_agents([agent, random_agent, random_agent])
-eval_env.set_agents([agent, random_agent, random_agent])
+actor_critic_agent = agents.actor_critic.Actor_Critic(action_num=eval_env.action_num)
+rule_based_agent = doudizhu_rule_models.DouDizhuRuleAgentV1()
+
+#continue training with pretrained networks
+actor_critic_agent.actor = keras.models.load_model('DouDizhu/models/Actor.h5')
+actor_critic_agent.critic = keras.models.load_model('DouDizhu/models/Critic.h5')
+
+env.set_agents([actor_critic_agent, rule_based_agent, rule_based_agent])
+eval_env.set_agents([actor_critic_agent, rule_based_agent, rule_based_agent])
 
 
 # Init a Logger to plot the learning curve
@@ -102,22 +112,25 @@ for episode in range(episode_num):
     for ts in trajectories[0]:
         
         #uncomment this once its not a random agent anymore Georg
-        agent.feed(ts) 
+        actor_critic_agent.feed(ts) 
 
     # Evaluate the performance. Play with random agents.
     if episode % evaluate_every == 0:
         logger.log_performance(env.timestep, tournament(eval_env, evaluate_num)[0])
+        print(episode)
 
 # Close files in the logger
 logger.close_files()
 
 # Plot the learning curve
-logger.plot('DQN')
+logger.plot('AC')
 
 # Save model
-save_dir = 'models/doudizhu_dqn'
+save_dir = 'models/doudizhu_ac_agent'
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
+    actor_critic_agent.actor.save('Doudizhu/models/Actor_v2.h5')
+    actor_critic_agent.critic.save('Doudizhu/models/Critic_v2.h5')
 
 #TODO: create here a function which will save the model or the state of the whole training process Georg
     

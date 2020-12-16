@@ -4,7 +4,7 @@
 import numpy as np
 
 import doudizhu
-from game_utils import CARD_TYPE, INDEX
+from doudizhu_game.utils import CARD_TYPE, INDEX
 from model import Model
 
 class DouDizhuRuleAgentV1(object):
