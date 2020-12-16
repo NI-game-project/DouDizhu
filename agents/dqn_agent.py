@@ -63,7 +63,7 @@ class DQNAgent(object):
                  state_shape=None,
                  train_every=1,
                  mlp_layers=None,
-                 learning_rate=0.0001):
+                 learning_rate=0.00005):
 
         self.use_raw = False
         self.replay_memory_init_size = replay_memory_init_size
@@ -131,37 +131,54 @@ class DQNAgent(object):
         # first implementation of a double dqn network refer to https://keras.io/examples/rl/deep_q_network_breakout/
         # it might be wrong, will check within this week
 
+        
         state_batch, action_batch, reward_batch, next_state_batch, done_batch = self.memory.sample()
         
         # Calculate q values and targets (Double DQN)
+        # first predict the q_values with the q_estimator and choose the best action
         q_values_next = self.q_estimator.predict(next_state_batch)
         best_actions = np.argmax(q_values_next, axis=1)
 
+        #than predict the same with the target_estimator
         q_values_next_target = self.target_estimator.predict(next_state_batch)
 
+        # in order to get the target, add the predicted next q_values (reward) times a discount factor to the reward
+        # the invert done batch states, that at the end of the episode, no future state is taken into account
         target_batch = reward_batch + np.invert(done_batch).astype(np.float32) * self.discount_factor * q_values_next_target[np.arange(self.batch_size), best_actions]
 
         state_batch = np.array(state_batch)
 
-        self.q_estimator.fit(state_batch,target_batch, batch_size= self.batch_size, verbose=0)
+        #fit the q_estimator verbose = 0 just means, that the training process is not shown in the terminal while running
+        
+        # this is version v1 and v2. v2 was trained for ruffly 300.000 epochs to achieve 0.65 average
+
+        self.q_estimator.fit(state_batch, target_batch, batch_size= self.batch_size, verbose=0)
+        
         '''
+        
+        this is version v0_1
+
         optimizer = Adam(lr=self.learning_rate)
+
         with tf.GradientTape() as tape:
 
             predictions = self.q_estimator(state_batch)
 
+            action_predictions = tf.one_hot(action_batch, self.action_num, on_value=1,off_value=0)
             # Get the predictions for the chosen actions only
-            gather_indices = tf.range(self.batch_size) * tf.shape(predictions)[1] + action_batch
-            action_predictions = tf.gather(tf.reshape(predictions, [-1]), gather_indices)
+            #gather_indices = tf.range(self.batch_size) * tf.shape(predictions)[1] + action_batch
+            #action_predictions = tf.gather(tf.reshape(predictions, [-1]), gather_indices)
 
+            q_action = tf.reduce_sum(predictions - action_predictions)
             # Calculate the loss
-            losses = tf.math.squared_difference(target_batch, action_predictions)
+            losses = tf.math.squared_difference(target_batch, q_action)
             loss = tf.reduce_mean(losses)
 
             grads = tape.gradient(loss, self.q_estimator.trainable_variables)
             optimizer.apply_gradients(zip(grads, self.q_estimator.trainable_variables))
 
         '''
+
         # Update the target estimator
         if self.train_t % self.update_target_estimator_every == 0:
             
@@ -177,15 +194,22 @@ class DQNAgent(object):
 
 
     def create_model(self, action_num, learning_rate, state_shape):
-
+        
+        # this is the input layer for the dqn networks. Since dueling DQN is used, two networks
+        # with identical structure are built
         input_x = Input(state_shape)
+        # the input need to be flattend
         x = Flatten()(input_x)
+        # and than batchnormalization is applied (like in the RLCard framework)
         x = keras.layers.BatchNormalization()(x)
+        # than two dense layers with relu activation and 512 neurons
         x = Dense(512,activation='relu')(x)
         x = Dense(512,activation='relu')(x)
+        # and finally, the output layer with 309 outputs (action space of DouDizhu)
         output = Dense(action_num)(x)
-
+        #set it all together
         network = keras.Model(inputs = input_x, outputs=output)
+        # compile it with the Adam Optimizer and the mean sqeared error loss between prediction and target
         network.compile(loss='mse', optimizer=Adam(lr=learning_rate))
         
         print(network.summary())

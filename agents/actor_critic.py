@@ -2,6 +2,7 @@ import tensorflow as tf
 import keras 
 from keras.layers import Dense, Input, Flatten, BatchNormalization
 from keras.optimizers import Adam
+import keras.backend as K
 import numpy as np
 
 import random
@@ -52,29 +53,32 @@ class Actor_Critic():
 
         self.memory = Memory(self.replay_memory_size, self.batch_size)
 
+
+        def ppo_loss(y_true, y):
+        
+
+            advantages, predictions, actions = y_true[:, :1], y_true[:, 1:1+self.action_num], y_true[:, 1+self.action_num:]
+
+            loss_clipping = 0.2
+            entropy_loss = 5e-3
+
+            prob = y * actions
+            old_prob = predictions * actions 
+
+            r = prob/(old_prob + 1e-10)
+
+            p1 = r*advantages
+            p2 = K.clip(r, min_value = 1-loss_clipping, max_value=1+loss_clipping) * advantages
+
+            loss = - K.mean(K.minimum(p1,p2) + entropy_loss * -(prob*K.log(prob + 1e-10)))
+            return loss
+
+
         self.critic = self.create_critic(1, self.learning_rate, self.state_shape)
         self.critic.compile(optimizer=Adam(lr=self.learning_rate), loss='mse')
         self.actor = self.create_actor(309, self.learning_rate, self.state_shape)
-        self.actor.compile(loss='categorical_crossentropy', optimizer=Adam(lr=self.learning_rate))
-
-    def ppo_loss(self, y_true, predicitons):
-        
-
-        advantages, predictions, actions = y_true[:, :1], y_true[:, 1:1+self.output_shape], y_true[:, 1+self.output_shape:]
-
-        loss_clipping = 0.2
-        entropy_loss = 5e-3
-
-        prob = y_pred_actor * actions
-        old_prob = predictions * actions 
-
-        r = prob/(old_prob + 1e-10)
-
-        p1 = r*advantages
-        p2 = K.clip(r, min_value = 1-loss_clipping, max_value=1+loss_clipping) * advantages
-
-        loss = - K.mean(K.minimum(p1,p2) + entropy_loss * -(prob*K.log(prob + 1e-10)))
-        return loss
+        #self.actor.compile(loss='categorical_crossentropy', optimizer=Adam(lr=self.learning_rate))
+        self.actor.compile(loss=ppo_loss, optimizer=Adam(lr=self.learning_rate))
 
     def feed(self, ts):
 
@@ -120,39 +124,34 @@ class Actor_Critic():
         
         states, actions, rewards, _, _ = self.memory.sample()
         values = self.critic(states)
-        predictions = self.actor(states)
         self.batch_size = len(actions)
-        action_one_hot = tf.one_hot(actions, self.action_num)
-
-        gather_indices = tf.range(len(actions)) * tf.shape(predictions)[1] + actions
-        action_predictions = tf.gather(tf.reshape(predictions, [-1]), gather_indices)
+        action_one_hot = tf.one_hot(actions, self.action_num, on_value=1,off_value=0)
 
         discounted_rewards = self.discounted_rewards(rewards)
         advantages = discounted_rewards - tf.reshape(values,-1)
-        y_true = np.hstack([advantages, action_predictions, actions])
         
+        #this blog is needed for ppo
+        #predictions = self.actor(states)
+        #gather_indices = tf.range(len(actions)) * tf.shape(predictions)[1] + actions
+        #action_predictions = tf.gather(tf.reshape(predictions, [-1]), gather_indices,axis=0)
+        #y_true = np.hstack([advantages, action_predictions, actions])
 
-
-        self.actor.fit(states, action_one_hot, sample_weight = advantages, batch_size=self.batch_size)
-        self.critic.fit(states, discounted_rewards, batch_size=self.batch_size)
+        self.actor.fit(states, action_one_hot, sample_weight = advantages, batch_size=self.batch_size, verbose=0)
+        self.critic.fit(states, discounted_rewards, batch_size=self.batch_size, verbose = 0)
 
 
     
     def discounted_rewards(self, reward):
 
+        
         gamma = 0.993    # discount rate
         running_add = 0
         discounted_r = np.zeros_like(reward, dtype='float64')
         for i in reversed(range(0,len(reward))):
             if reward[i] != 0: # reset the sum, since this was a game boundary (pong specific!)
-                print(discounted_r)
                 running_add = 0
             running_add = running_add * gamma + reward[i]
             discounted_r[i] = running_add
-        if tf.math.reduce_sum(discounted_r) ==  50:
-            discounted_r -= np.mean(discounted_r) # normalizing the result
-            discounted_r /= np.std(discounted_r) # divide by standard deviation
-            print(discounted_r)
         return discounted_r
 
 
