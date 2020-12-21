@@ -28,8 +28,8 @@ class Actor_Critic():
                  state_shape=None,
                  train_every=1,
                  mlp_layers=None,
-                 learning_rate=0.00005):
-
+                 learning_rate=0.0001):
+        
         self.use_raw = False
         self.replay_memory_init_size = replay_memory_init_size
         self.update_target_estimator_every = update_target_estimator_every
@@ -73,12 +73,18 @@ class Actor_Critic():
             loss = - K.mean(K.minimum(p1,p2) + entropy_loss * -(prob*K.log(prob + 1e-10)))
             return loss
 
+        self.optimizer = keras.optimizers.RMSprop(lr=self.learning_rate)
 
         self.critic = self.create_critic(1, self.learning_rate, self.state_shape)
-        self.critic.compile(optimizer=Adam(lr=self.learning_rate), loss='mse')
-        self.actor = self.create_actor(309, self.learning_rate, self.state_shape)
+        self.critic.compile(optimizer=self.optimizer, loss='mse')
+        self.actor = self.create_actor(self.action_num, self.learning_rate, self.state_shape)
+        
+        # this has been used for the first try in experiments 3,4,5
         #self.actor.compile(loss='categorical_crossentropy', optimizer=Adam(lr=self.learning_rate))
-        self.actor.compile(loss=ppo_loss, optimizer=Adam(lr=self.learning_rate))
+        
+        
+        
+        #self.actor.compile(loss=ppo_loss, optimizer=Adam(lr=self.learning_rate))
 
     def feed(self, ts):
 
@@ -103,7 +109,7 @@ class Actor_Critic():
 
     def eval_step(self, state):
 
-        prediction = self.actor.predict(np.expand_dims(state['obs'], 0))[0]
+        prediction = self.actor(np.expand_dims(state['obs'], 0))[0]
         probs = remove_illegal(np.exp(prediction), state['legal_actions'])
         best_action = np.argmax(probs)
         
@@ -113,7 +119,7 @@ class Actor_Critic():
 
         epsilon = self.epsilons[min(self.total_t, self.epsilon_decay_steps - 1)]
         A = np.ones(self.action_num, dtype=float) * epsilon / self.action_num
-        prediction = self.actor.predict(np.expand_dims(state,0))[0]
+        prediction = self.actor(np.expand_dims(state,0))[0]
         best_action = np.argmax(prediction)
         A[best_action] += (1.0 - epsilon)
         
@@ -122,21 +128,41 @@ class Actor_Critic():
 
     def train(self):
         
+        
         states, actions, rewards, _, _ = self.memory.sample()
         values = self.critic(states)
         self.batch_size = len(actions)
-        action_one_hot = tf.one_hot(actions, self.action_num, on_value=1,off_value=0)
+        action_one_hot = tf.one_hot(actions, self.action_num, on_value=1,off_value=0, dtype='float32')
 
         discounted_rewards = self.discounted_rewards(rewards)
-        advantages = discounted_rewards - tf.reshape(values,-1)
-        
-        #this blog is needed for ppo
-        #predictions = self.actor(states)
-        #gather_indices = tf.range(len(actions)) * tf.shape(predictions)[1] + actions
-        #action_predictions = tf.gather(tf.reshape(predictions, [-1]), gather_indices,axis=0)
-        #y_true = np.hstack([advantages, action_predictions, actions])
 
-        self.actor.fit(states, action_one_hot, sample_weight = advantages, batch_size=self.batch_size, verbose=0)
+        advantages = discounted_rewards - tf.reshape(values,-1)
+        advantages = np.reshape(advantages, (-1,1))
+        #this blog is needed for ppo
+        predictions = self.actor(states)
+        gather_indices = tf.range(len(actions)) * tf.shape(predictions)[1] + actions
+        action_predictions = tf.gather(tf.reshape(predictions, [-1]), gather_indices,axis=0)
+        #y_true = np.hstack([advantages, action_predictions, actions])
+        
+        with tf.GradientTape() as tape:
+
+            y_pred_actor = self.actor(states, training=True)
+            loss_clipping = 0.2
+            entropy_loss = 5e-3
+
+            prob = y_pred_actor * action_one_hot
+            old_prob = action_one_hot * predictions
+            r = prob/(old_prob + 1e-10)
+            p1 = r * advantages
+            p2 = K.clip(r, min_value=1-loss_clipping, max_value=1+loss_clipping) * advantages
+            loss = - K.mean(K.minimum(p1,p2) + entropy_loss * -(prob*K.log(prob + 1e-10)))
+
+            
+            grads = tape.gradient(loss, self.actor.trainable_weights)
+            self.optimizer.apply_gradients(zip(grads, self.actor.trainable_weights))
+        # this was the version for the original a2c
+        # self.actor.fit(states, action_one_hot, sample_weight = advantages, batch_size=self.batch_size, verbose=0)
+        #self.actor.fit(states, y_true, batch_size=self.batch_size, verbose=0)
         self.critic.fit(states, discounted_rewards, batch_size=self.batch_size, verbose = 0)
 
 
@@ -152,6 +178,10 @@ class Actor_Critic():
                 running_add = 0
             running_add = running_add * gamma + reward[i]
             discounted_r[i] = running_add
+        
+        #if tf.reduce_sum(reward) != 0:
+        #    discounted_r -= np.mean(discounted_r) # normalizing the result
+        #    discounted_r /= np.std(discounted_r)
         return discounted_r
 
 
@@ -166,13 +196,12 @@ class Actor_Critic():
         input_x = Input(state_shape)
         x = Flatten()(input_x)
         #x = keras.layers.BatchNormalization()(x)
-        x = Dense(512,activation='relu', kernel_initializer='he_normal')(x)
-        x = Dense(512,activation='relu', kernel_initializer='he_normal')(x)
-        output = Dense(action_num, activation='softmax', kernel_initializer='he_normal')(x)
+        x = Dense(512,activation='relu')(x)
+        x = Dense(512,activation='relu')(x)
+        output = Dense(action_num, activation='softmax')(x)
 
         network = keras.Model(inputs = input_x, outputs=output)
-        
-        
+    
         #print(network.summary())
         return network
         

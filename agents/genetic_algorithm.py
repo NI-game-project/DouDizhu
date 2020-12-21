@@ -6,7 +6,7 @@ import keras
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dense
 from keras.optimizers import Adam, RMSprop
 
-import agent
+import agents
 import new_nn
 
 def set_parameters(model, weights):

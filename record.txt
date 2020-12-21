@@ -1,0 +1,19 @@
+experiment 2 a2c: actor_critic v4_n was trained for 2000 episodes with discounted reward-normalizaton: learning_rate=0.00005 and softmax function. doesnt learn anything
+
+experiment 3 a2c: actor_critic v4_n was trained for 1500 episodes with discounted reward-normalizaton learning_rate=0.00005 and without softmax deleted
+
+experiment 3 a2c: actor_critic v4 was trained for 1500 episodes with discounted reward-normalizaton learning_rate=0.001 and with softmax
+experiment 4 a2c: exp 3 was taken and trained 500 episodes more with learning_rate = 0.0001
+experiment 5 ac2: exp4 was taken and trained for 1000 episodes with learning reate = 0.0005
+
+experiment ac b0 = 1500 episodes with discounted reward-normalizaton: learning_rate=0.0001 and ppo and Adam
+experiment ac c0 = 1500 episodes without discounted reward, learning rate 0.0001 and ppo with RMSprop
+experiment ac d0 = 1500 episodes without discounted reward, learning rate 0.00005 and ppo with RMSprop
+experiment ac d0 = the one from d0 but 5000 more episodes without discounted reward, learning rate 0.00005 and ppo with RMSprop instead of random, rule based is plotted
+experiment ac d2 = the one from d0 but 10000 more episodes without discounted reward, learning rate 0.00001 and ppo with RMSprop instead of random, rule based is plottedlearning_rate=0.00001
+
+
+experiment dqn 1024 = 10000 episodes with larger network and without the predict function and learning rate 0.0001 start: 13:07, ende 17:37
+
+experiment hypernetwork 1:  trained with learnining rate 0.0001 and 5000 episodes, after  2000 episodes always at the lower edge
+experiment hypernetwork 2: models/hypernetwork/a1.h5 trained with learnining rate 0.00001 and 5000 episodes,

@@ -24,8 +24,8 @@ import enum
 import numpy as np
 import tensorflow as tf
 
-from rlcard.agents.dqn_agent import DQNAgent
-from rlcard.utils.utils import remove_illegal
+from dqn_agent import DQNAgent
+from utils import remove_illegal
 
 Transition = collections.namedtuple('Transition', 'info_state action_probs')
 

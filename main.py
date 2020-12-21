@@ -65,9 +65,9 @@ eval_env = doudizhu.DoudizhuEnv(config)
 # Set the iterations numbers and how frequently we evaluate the performance
 
 # TODO: These are just dummy numbers Georg
-evaluate_every = 10
-evaluate_num = 10
-episode_num = 2000
+evaluate_every = 50
+evaluate_num = 50
+episode_num = 1500
 memory_init_size = 1000
 
 # Train the agent every X steps
@@ -77,10 +77,10 @@ train_every = 1
 # TODO: Find a better way to structure the loading and storing of the models
 # 
 
-log_dir = './experiments/'
+log_dir = './experiments/simple/ac/a1'
 
 # Set a global seed
-set_global_seed(0)
+set_global_seed(42)
 
 # Initialize a global step
 global_step = tf.Variable(0, name='global_step', trainable=False)
@@ -89,8 +89,8 @@ global_step = tf.Variable(0, name='global_step', trainable=False)
 
 # uncomment the agent you want to use Georg
 
-agent = agents.dqn_agent.DQNAgent(action_num=eval_env.action_num) 
-#agent = agents.actor_critic.Actor_Critic(action_num=eval_env.action_num)
+#agent = agents.dqn_agent.DQNAgent(action_num=eval_env.action_num) 
+agent = agents.actor_critic.Actor_Critic(action_num=eval_env.action_num)
 
 random_agent = random_agent.RandomAgent(action_num=eval_env.action_num)
 rule_based_agent = doudizhu_rule_models.DouDizhuRuleAgentV1()
@@ -98,8 +98,8 @@ rule_based_agent = doudizhu_rule_models.DouDizhuRuleAgentV1()
 # continue training with pretrained networks 
 # (for actor_critic agent)
 
-agent.actor = keras.models.load_model('models/a2c/actor.h5')
-agent.critic = keras.models.load_model('models/a2c/critic.h5')
+#agent.actor = keras.models.load_model('models/a2c/actor_d3.h5')
+#agent.critic = keras.models.load_model('models/a2c/critic_d3.h5')
 
 # for dqn agent
 
@@ -107,8 +107,8 @@ agent.critic = keras.models.load_model('models/a2c/critic.h5')
 #agent.target_estimator = keras.models.load_model('models/dqn/target_estimator_v1.h5')
 
 
-env.set_agents([agent, rule_based_agent, rule_based_agent])
-eval_env.set_agents([agent, random_agent, random_agent])
+env.set_agents([agent, random_agent, random_agent])
+eval_env.set_agents([agent, rule_based_agent, rule_based_agent])
 
 
 # Init a Logger to plot the learning curve
@@ -150,8 +150,8 @@ if not os.path.exists(save_dir):
 #agent.target_estimator.save('models/dqn/target_estimator_v0_1.h5')
 
 #uncomment this to save the a2c model
-agent.actor.save('models/a2c/actor_v2.h5')
-agent.critic.save('models/a2c/critic_v2.h5')
+agent.actor.save('models/a2c/actor_d4.h5')
+agent.critic.save('models/a2c/critic_d4.h5')
 
 
     

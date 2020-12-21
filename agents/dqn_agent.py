@@ -38,7 +38,7 @@ import tensorflow as tf
 from collections import namedtuple
 
 import keras
-from keras.layers import Dense, Input, Flatten
+from keras.layers import Dense, Input, Flatten, Dropout
 from keras.optimizers import Adam
 
 from utils import remove_illegal
@@ -63,7 +63,7 @@ class DQNAgent(object):
                  state_shape=None,
                  train_every=1,
                  mlp_layers=None,
-                 learning_rate=0.00005):
+                 learning_rate=0.0001):
 
         self.use_raw = False
         self.replay_memory_init_size = replay_memory_init_size
@@ -110,7 +110,7 @@ class DQNAgent(object):
 
     def eval_step(self, state):
 
-        q_values = self.q_estimator.predict(np.expand_dims(state['obs'], 0))[0]
+        q_values = self.q_estimator(np.expand_dims(state['obs'], 0))[0]
         probs = remove_illegal(np.exp(q_values), state['legal_actions'])
         best_action = np.argmax(probs)
         return best_action, probs
@@ -119,7 +119,7 @@ class DQNAgent(object):
 
         epsilon = self.epsilons[min(self.total_t, self.epsilon_decay_steps-1)]
         A = np.ones(self.action_num, dtype=float) * epsilon / self.action_num
-        q_values = self.q_estimator.predict(np.expand_dims(state, 0))[0]
+        q_values = self.q_estimator(np.expand_dims(state, 0))[0]
         best_action = np.argmax(q_values)
         A[best_action] += (1.0 - epsilon)
         return A
@@ -136,11 +136,11 @@ class DQNAgent(object):
         
         # Calculate q values and targets (Double DQN)
         # first predict the q_values with the q_estimator and choose the best action
-        q_values_next = self.q_estimator.predict(next_state_batch)
+        q_values_next = self.q_estimator(next_state_batch).numpy()
         best_actions = np.argmax(q_values_next, axis=1)
 
         #than predict the same with the target_estimator
-        q_values_next_target = self.target_estimator.predict(next_state_batch)
+        q_values_next_target = self.target_estimator(next_state_batch).numpy()
 
         # in order to get the target, add the predicted next q_values (reward) times a discount factor to the reward
         # the invert done batch states, that at the end of the episode, no future state is taken into account
@@ -148,7 +148,7 @@ class DQNAgent(object):
 
         state_batch = np.array(state_batch)
 
-        #fit the q_estimator verbose = 0 just means, that the training process is not shown in the terminal while running
+        # fit the q_estimator verbose = 0 just means, that the training process is not shown in the terminal while running
         
         # this is version v1 and v2. v2 was trained for ruffly 300.000 epochs to achieve 0.65 average
 
@@ -203,6 +203,12 @@ class DQNAgent(object):
         # and than batchnormalization is applied (like in the RLCard framework)
         x = keras.layers.BatchNormalization()(x)
         # than two dense layers with relu activation and 512 neurons
+
+        x = Dense(1024, activation='relu')(x)
+        x = Dense(1024, activation='relu')(x)
+
+        #x = Dropout(.2)
+
         x = Dense(512,activation='relu')(x)
         x = Dense(512,activation='relu')(x)
         # and finally, the output layer with 309 outputs (action space of DouDizhu)
@@ -215,7 +221,6 @@ class DQNAgent(object):
         print(network.summary())
         return network
         
-
 class Memory(object):
 
 
