@@ -16,4 +16,8 @@ experiment ac d2 = the one from d0 but 10000 more episodes without discounted re
 experiment dqn 1024 = 10000 episodes with larger network and without the predict function and learning rate 0.0001 start: 13:07, ende 17:37
 
 experiment hypernetwork 1:  trained with learnining rate 0.0001 and 5000 episodes, after  2000 episodes always at the lower edge
-experiment hypernetwork 2: models/hypernetwork/a1.h5 trained with learnining rate 0.00001 and 5000 episodes,
+experiment hypernetwork 2: trained with learnining rate 0.00001 and 5000 episodes, not converging at all after 2000 episodes
+experiment hypernetwork 3: models/hypernetwork/a1.h5 trained with learnining rate 0.00005 and 2000 episodes
+
+experiment hypernetwork 4: different from the first three becuase now the embedding vector for the weight generating part is 10 instead of 5
+                            learing rate is again 0.00005 and 15.000 episodes also number of epochs has been doubeld to 10, but batch size remains at 8

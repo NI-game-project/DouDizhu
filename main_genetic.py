@@ -13,13 +13,15 @@ import logger
 from utils import set_global_seed, tournament
 import agents.dqn_agent
 
+import pandas
 
 def set_parameters(model, weights):
     
     last_used = 0
+    weights = tf.constant(weights[0], dtype='float32')
     for i in range(len(model.layers)):
 
-        if 'dense' in model.layers[i].name: 
+        if 'dense' in model.layers[i].name:
             weights_shape = model.layers[i].kernel.shape
             no_of_weights = tf.reduce_prod(weights_shape)
             new_weights = tf.reshape(weights[last_used:last_used+no_of_weights], weights_shape) 
@@ -38,11 +40,11 @@ def set_parameters(model, weights):
 def initial_population(population_size, weight_space):
     
     workers = []
-    kernel1 = 13107712 - 512
+    #kernel1 = 13107712 - 512
     #kernel1 = 3277312 - 512
-    bias1 = kernel1 + 512
-    kernel2 = bias1 + 3072
-    bias2 = kernel2 + 6
+    #bias1 = kernel1 + 512
+    #kernel2 = bias1 + 3072
+    #bias2 = kernel2 + 6
 
     fan_in = 6400*4
     
@@ -50,8 +52,8 @@ def initial_population(population_size, weight_space):
 
         tf.keras.initializers.he_uniform()
         z = np.random.uniform(low=-np.sqrt(6/fan_in), high=np.sqrt(6/fan_in), size=weight_space)
-        z[kernel1:bias1] = np.zeros(bias1-kernel1)
-        z[kernel2:bias2] = np.zeros(bias2-kernel2)
+        #z[kernel1:bias1] = np.zeros(bias1-kernel1)
+        #z[kernel2:bias2] = np.zeros(bias2-kernel2)
         workers.append([z])
 
     return workers
@@ -61,14 +63,16 @@ def evaluate_population(workers, evaluate_num, config):
     elite_workers = []
     rewards = []
     env = simpledoudizhu.SimpleDoudizhuEnv(config)
-    random_agent = random_agent.RandomAgent(action_num=env.action_num)
+    random_agent = agents.random_agent.RandomAgent(action_num=env.action_num)
+    agent = agents.dqn_agent.DQNAgent(action_num=env.action_num)
 
     for worker in workers:
         
-        agent = agents.dqn_agent.DQNAgent(action_num=env.action_num)
+        agent.q_estimator = set_parameters(agent.q_estimator, worker)
         env.set_agents([agent, random_agent, random_agent])
-
+       
         payoff = tournament(env, evaluate_num)[0]
+        #print(payoff)
 
         rewards.append(payoff)
     
@@ -78,6 +82,10 @@ def evaluate_population(workers, evaluate_num, config):
 
     for idx in elite_idx:
         elite_workers.append(workers[idx])
+    
+    del env
+    del agent
+    del random_agent
 
     return elite_workers, rewards
 
@@ -102,7 +110,7 @@ def main():
     log = logger.Logger(log_dir)
     
     config = {  'allow_step_back':True,
-            'allow_raw_data': True, 
+            'allow_raw_data': False, 
             'record_action': True,
             'seed': 42,
             'single_agent_mode': False,
@@ -113,21 +121,35 @@ def main():
     generations = 300
     epsilon = 0.002
     evaluate_num = 30
-    
-
 
     #np.random.seed(42)
     weight_space = 2459197
+    
+    #initial_agent = agents.dqn_agent.DQNAgent()
+    #model = initial_agent.q_estimator
     workers = initial_population(population_size, weight_space)
     
     for i in range(generations):
 
         elite_workers, rewards = evaluate_population(workers, evaluate_num, config)
+        del workers 
         workers = []
         workers = mutate_population(elite_workers, population_size, weight_space, epsilon)
 
         print('these are the scores of the first generation', rewards, 'and the generation', i)
+
+        if i == generations:
+            
+            print(elite_workers[0])
+            
+            df = pandas.DataFrame(data={"col1": list_1, "col2": list_2})
+            df.to_csv("./file.csv", sep=',',index=False)
+
+        del elite_workers
+        del rewards
         elite_workers, rewards = [],[]
+    
+
 
 main()
 

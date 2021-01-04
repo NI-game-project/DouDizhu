@@ -59,7 +59,7 @@ class DQNAgent(object):
                  epsilon_end=0.1,
                  epsilon_decay_steps=20000,
                  batch_size=32,
-                 action_num=2,
+                 action_num=None,
                  state_shape=None,
                  train_every=1,
                  mlp_layers=None,
@@ -218,7 +218,7 @@ class DQNAgent(object):
         # compile it with the Adam Optimizer and the mean sqeared error loss between prediction and target
         network.compile(loss='mse', optimizer=Adam(lr=learning_rate))
         
-        print(network.summary())
+        #print(network.summary())
         return network
         
 class Memory(object):
