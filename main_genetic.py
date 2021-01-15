@@ -8,10 +8,10 @@ from keras.optimizers import Adam, RMSprop
 
 #import agents.genetic_algorithm
 import agents.random_agent as random_agent
-import simpledoudizhu
-import logger
-from utils import set_global_seed, tournament
-import agents.dqn_agent
+import envs.simpledoudizhu as simpledoudizhu
+import envs.logger as logger
+from envs.utils import set_global_seed, tournament
+import agents.dqn
 
 import pandas
 
@@ -64,7 +64,7 @@ def evaluate_population(workers, evaluate_num, config):
     rewards = []
     env = simpledoudizhu.SimpleDoudizhuEnv(config)
     random_agent = agents.random_agent.RandomAgent(action_num=env.action_num)
-    agent = agents.dqn_agent.DQNAgent(action_num=env.action_num)
+    agent = agents.dqn.DQNAgent(action_num=env.action_num)
 
     for worker in workers:
         
@@ -142,8 +142,8 @@ def main():
             
             print(elite_workers[0])
             
-            df = pandas.DataFrame(data={"col1": list_1, "col2": list_2})
-            df.to_csv("./file.csv", sep=',',index=False)
+            #df = pandas.DataFrame(data={"col1": list_1, "col2": list_2})
+            #df.to_csv("./file.csv", sep=',',index=False)
 
         del elite_workers
         del rewards

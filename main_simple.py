@@ -32,7 +32,7 @@ SOFTWARE.
 This is a modified agent by Georg which uses tensorflow 2.3.0, keras 2.4.3, numpy 1.18.5 
 
 '''
-
+import time
 
 import tensorflow as tf
 import keras
@@ -40,7 +40,6 @@ import os
 
 
 import agents.dqn
-import agents.ppo_a2c
 import agents.a2c
 import agents.doudizhu_rule_models as doudizhu_rule_models
 import agents.random_agent as random_agent
@@ -48,30 +47,27 @@ from envs.utils import set_global_seed, tournament
 import envs.logger as logger
 from envs.env import Env
 import envs.doudizhu as doudizhu
-import envs.simpledoudizhu as simpledoudizhu
 
 
 #here a config dictionary has to be set, depending on what is wanted. Georg
 
-config = {  'allow_step_back':False,
-            'allow_raw_data': False, 
-            'record_action': False,
+config = {  'allow_step_back':True,
+            'allow_raw_data': True, 
+            'record_action': True,
             'seed': 42,
             'single_agent_mode': False,
-            'active_player': False}
+            'active_player': True}
 
 # Make environment
 env = doudizhu.DoudizhuEnv(config)
 eval_env = doudizhu.DoudizhuEnv(config)
-#env = simpledoudizhu.SimpleDoudizhuEnv(config)
-#eval_env = simpledoudizhu.SimpleDoudizhuEnv(config)
 
 # Set the iterations numbers and how frequently we evaluate the performance
 
 # TODO: These are just dummy numbers Georg
 evaluate_every = 100
-evaluate_num = 100
-episode_num = 500000
+evaluate_num = 10
+episode_num = 10000
 memory_init_size = 1000
 
 # Train the agent every X steps
@@ -81,7 +77,7 @@ train_every = 1
 # TODO: Find a better way to structure the loading and storing of the models
 # 
 
-log_dir = 'experiments/a2c/a1_try'
+log_dir = './experiments/dqn/1024/a1'
 
 # Set a global seed
 set_global_seed(42)
@@ -93,9 +89,8 @@ global_step = tf.Variable(0, name='global_step', trainable=False)
 
 # uncomment the agent you want to use Georg
 
-agent = agents.a2c.Actor_Critic(action_num=eval_env.action_num)
-#agent = agents.dqn.DQNAgent(action_num=eval_env.action_num) 
-#agent = agents.ppo_a2c.Actor_Critic(action_num=eval_env.action_num)
+agent = agents.dqn.DQNAgent(action_num=eval_env.action_num) 
+#agent = agents.actor_critic.Actor_Critic(action_num=eval_env.action_num)
 
 random_agent = random_agent.RandomAgent(action_num=eval_env.action_num)
 rule_based_agent = doudizhu_rule_models.DouDizhuRuleAgentV1()
@@ -112,10 +107,8 @@ rule_based_agent = doudizhu_rule_models.DouDizhuRuleAgentV1()
 #agent.target_estimator = keras.models.load_model('models/dqn/target_estimator_v1.h5')
 
 
-env.set_agents([agent, random_agent, random_agent])
-
+env.set_agents([agent, rule_based_agent, rule_based_agent])
 eval_env.set_agents([agent, random_agent, random_agent])
-#eval_env.set_agents([agent, rule_based_agent, rule_based_agent])
 
 
 # Init a Logger to plot the learning curve
@@ -123,25 +116,24 @@ eval_env.set_agents([agent, random_agent, random_agent])
 # TODO: restructure this 
 logger = logger.Logger(log_dir)
 
+start_time = time.time()
 for episode in range(episode_num):
 
+    
     # Generate data from the environment
     trajectories, _ = env.run(is_training=True)
 
     # Feed transitions into agent memory, and train the agent
     for ts in trajectories[0]:
-        #print(trajectories[0])
-        #print(trajectories[1])
-        #print(trajectories[2])
+
         agent.feed(ts) 
 
     # Evaluate the performance. Play with random agents.
     if episode % evaluate_every == 0:
         logger.log_performance(env.timestep, tournament(eval_env, evaluate_num)[0])
         print(episode)
-        #print(tf.reduce_sum(agent.penalty))
-        #print(agent.best_actions)
-        #print(agent.actions)
+
+print('this is the training time', time.time() - start_time )
 
 # Close files in the logger
 logger.close_files()
@@ -151,19 +143,19 @@ logger.close_files()
 logger.plot('A2C')
 
 # Save model
-save_dir = 'models/PP0/'
+save_dir = 'models/dqn/1024/a1/'
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 
 
 
 # this safes the dqn models
-#agent.q_estimator.save('models/dqn/q_estimator_v0_1.h5')
-#agent.target_estimator.save('models/dqn/target_estimator_v0_1.h5')
+agent.q_estimator.save('models/dqn/q_estimator_a1.h5')
+agent.target_estimator.save('models/dqn/target_estimator_a1.h5')
 
 #uncomment this to save the a2c model
-#agent.model.save('models/a2c/ppo_a1.h5')
-#agent.critic.save('models/a2c/critic_d4.h5')
+#agent.actor.save('models/simple/a2c/actor_a1.h5')
+#agent.critic.save('models/simple/a2c/critic_a1.h5')
 
 
     
