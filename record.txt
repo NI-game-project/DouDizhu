@@ -21,3 +21,29 @@ experiment hypernetwork 3: models/hypernetwork/a1.h5 trained with learnining rat
 
 experiment hypernetwork 4: different from the first three becuase now the embedding vector for the weight generating part is 10 instead of 5
                             learing rate is again 0.00005 and 15.000 episodes also number of epochs has been doubeld to 10, but batch size remains at 8
+
+
+
+experiment dqn e1 : trained against random agents for 5000 episodes with learning_rate=0.0001 and two 512 Dense layers + output layer the file is in the simple
+                    dqn experiments folder
+experiment dqn e2 : trained e1 for 5000 episodes but now with 0.0001 lr 
+experiment dqn e3 : trained e2 again for 5000 episdodes with 0.0001 lr
+experiment dqn e4 : trained e3 again for 5000 episdodes with 0.0001 lr
+experiment dqn e5 : now train it against rule based agents for 5000 episdodes with 0.000s1 lr
+experiment dqn e6 : now train it against other agents but evaluate against rule based for 5000 episdodes with 0.00005 lr
+
+
+
+experiment genetic b1 : populationsize = 50 , generations = 100, trained against random agents, epsilon 0.002
+experiment genetic c2 : populationsize = 50 , generations = 100, trained against random agents, epsilon 0.0005
+
+experiment a2c s1 = 5000 episodes without discounted reward, learning rate 0.0001 and ppo with RMSprop
+
+experiment genetic c1: populationsize = 50 , generations = 300, trained against random agents, epsilon 0.0005
+experiment genetic d1: populationsize = 50 , generations = 300, trained the c1 elite against rule_based_agents, epsilon 0.0005
+experiment genetic d2: populationsize = 50 , generations = 500, trained the d1 elite against rule_based_agents, epsilon 0.0001
+experiment genetic d3: populationsize = 50 , generations = 300, trained the d2 elite against rule_based_agents, epsilon 0.00005
+
+experiment genetic a2c a1: populationsize = 50 , generations = 100, trained against random, epsilon 0.0005 learning_rate=0.000025
+experiment genetic a2c a2: populationsize = 50 , generations = 300, trained the a1 elite against rule_based_agents, epsilon 0.0005 learning_rate=0.000025
+experiment genetic a2c a3: populationsize = 50 , generations = 600, trained the a2 elite against rule_based_agents, epsilon 0.0001 learning_rate=0.000025

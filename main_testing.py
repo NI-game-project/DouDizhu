@@ -40,7 +40,7 @@ import os
 import time
 
 
-import agents.dqn
+import agents.ddqn
 import agents.a2c
 import agents.doudizhu_rule_models as doudizhu_rule_models
 import agents.simpledoudizhu_rule_models as simpledoudizhu_rule_models
@@ -73,7 +73,7 @@ log_dir = './testing/'
 # Train the agent every X steps
 train_every = 1
 
-agent = agents.dqn.DQNAgent(action_num=eval_env.action_num) 
+agent = agents.ddqn.DQNAgent(action_num=eval_env.action_num) 
 #agent = agents.actor_critic.Actor_Critic(action_num=eval_env.action_num)
 
 random_agent = random_agent.RandomAgent(action_num=eval_env.action_num)

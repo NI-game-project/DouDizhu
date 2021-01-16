@@ -26,7 +26,7 @@ class Actor_Critic():
                  batch_size=32,
                  action_num=2,
                  state_shape=None,
-                 train_every=1,
+                 train_every=256,
                  mlp_layers=None,
                  learning_rate=0.0001):
         
@@ -39,7 +39,7 @@ class Actor_Critic():
         self.action_num = action_num
         self.train_every = train_every
         self.learning_rate = learning_rate
-        self.state_shape = (6,5,15)
+        self.state_shape = (516) #(6,5,15)
         self.replay_memory_size = replay_memory_size
 
         # Total timesteps
@@ -49,43 +49,18 @@ class Actor_Critic():
         self.train_t = 0
 
         # The epsilon decay scheduler
+        # TODO: Doesnt really matter, but remove it for A2C
         self.epsilons = np.linspace(epsilon_start, epsilon_end, epsilon_decay_steps)
 
         self.memory = Memory(self.replay_memory_size, self.batch_size)
 
+        self.optimizer = keras.optimizers.Adam(lr=self.learning_rate)
 
-        def ppo_loss(y_true, y):
-        
-
-            advantages, predictions, actions = y_true[:, :1], y_true[:, 1:1+self.action_num], y_true[:, 1+self.action_num:]
-
-            loss_clipping = 0.2
-            entropy_loss = 5e-3
-
-            prob = y * actions
-            old_prob = predictions * actions 
-
-            r = prob/(old_prob + 1e-10)
-
-            p1 = r*advantages
-            p2 = K.clip(r, min_value = 1-loss_clipping, max_value=1+loss_clipping) * advantages
-
-            loss = - K.mean(K.minimum(p1,p2) + entropy_loss * -(prob*K.log(prob + 1e-10)))
-            return loss
-
-        self.optimizer = keras.optimizers.RMSprop(lr=self.learning_rate)
-
-        self.critic = self.create_critic(1, self.learning_rate, self.state_shape)
+        self.critic = self.create_critic(1, self.state_shape)
         self.critic.compile(optimizer=self.optimizer, loss='mse')
-        self.actor = self.create_actor(self.action_num, self.learning_rate, self.state_shape)
+        self.actor = self.create_actor(self.action_num, self.state_shape)
+        self.actor.compile(loss='categorical_crossentropy', optimizer=self.optimizer)
         
-        # this has been used for the first try in experiments 3,4,5
-        #self.actor.compile(loss='categorical_crossentropy', optimizer=Adam(lr=self.learning_rate))
-        
-        
-        
-        #self.actor.compile(loss=ppo_loss, optimizer=Adam(lr=self.learning_rate))
-
     def feed(self, ts):
 
         (state, action, reward, next_state, done) = tuple(ts)
@@ -125,51 +100,23 @@ class Actor_Critic():
         
         return A 
         
-
     def train(self):
-        
         
         states, actions, rewards, _, _ = self.memory.sample()
         values = self.critic(states)
-        self.batch_size = len(actions)
-        action_one_hot = tf.one_hot(actions, self.action_num, on_value=1,off_value=0, dtype='float32')
+        action_one_hot = tf.one_hot(actions, self.action_num, on_value=1,off_value=0)
 
         discounted_rewards = self.discounted_rewards(rewards)
 
         advantages = discounted_rewards - tf.reshape(values,-1)
         advantages = np.reshape(advantages, (-1,1))
-        #this blog is needed for ppo
-        predictions = self.actor(states)
-        gather_indices = tf.range(len(actions)) * tf.shape(predictions)[1] + actions
-        action_predictions = tf.gather(tf.reshape(predictions, [-1]), gather_indices,axis=0)
-        #y_true = np.hstack([advantages, action_predictions, actions])
         
-        with tf.GradientTape() as tape:
-
-            y_pred_actor = self.actor(states, training=True)
-            loss_clipping = 0.2
-            entropy_loss = 5e-3
-
-            prob = y_pred_actor * action_one_hot
-            old_prob = action_one_hot * predictions
-            r = prob/(old_prob + 1e-10)
-            p1 = r * advantages
-            p2 = K.clip(r, min_value=1-loss_clipping, max_value=1+loss_clipping) * advantages
-            loss = - K.mean(K.minimum(p1,p2) + entropy_loss * -(prob*K.log(prob + 1e-10)))
-
-            
-            grads = tape.gradient(loss, self.actor.trainable_weights)
-            self.optimizer.apply_gradients(zip(grads, self.actor.trainable_weights))
-        # this was the version for the original a2c
-        # self.actor.fit(states, action_one_hot, sample_weight = advantages, batch_size=self.batch_size, verbose=0)
-        #self.actor.fit(states, y_true, batch_size=self.batch_size, verbose=0)
+        self.actor.fit(states, action_one_hot, sample_weight = advantages, batch_size=self.batch_size, verbose=0,epochs = 10)
         self.critic.fit(states, discounted_rewards, batch_size=self.batch_size, verbose = 0)
-
 
     
     def discounted_rewards(self, reward):
 
-        
         gamma = 0.993    # discount rate
         running_add = 0
         discounted_r = np.zeros_like(reward, dtype='float64')
@@ -190,34 +137,26 @@ class Actor_Critic():
         self.memory.save(state, action, reward, next_state, done)
 
     
-    def create_actor(self, action_num, learning_rate, state_shape):
-
+    def create_actor(self, action_num, state_shape):
 
         input_x = Input(state_shape)
         x = Flatten()(input_x)
-        #x = keras.layers.BatchNormalization()(x)
         x = Dense(512,activation='relu')(x)
         x = Dense(512,activation='relu')(x)
         output = Dense(action_num, activation='softmax')(x)
-
         network = keras.Model(inputs = input_x, outputs=output)
     
-        #print(network.summary())
         return network
         
-    def create_critic(self, action_num, learning_rate, state_shape):
+    def create_critic(self, action_num, state_shape):
 
         input_x = Input(state_shape)
         x = Flatten()(input_x)
-        #x = keras.layers.BatchNormalization()(x)
         x = Dense(512,activation='relu')(x)
         x = Dense(512,activation='relu')(x)
         output = Dense(action_num)(x)
-
         network = keras.Model(inputs = input_x, outputs=output)
         
-        
-        #print(network.summary())
         return network
 
 
@@ -238,7 +177,7 @@ class Memory(object):
         self.memory.append(transition)
     
     def sample(self):
-        #not random
+        
         samples = self.memory
 
         return map(np.array, zip(*samples))

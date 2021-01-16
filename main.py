@@ -37,10 +37,12 @@ This is a modified agent by Georg which uses tensorflow 2.3.0, keras 2.4.3, nump
 import tensorflow as tf
 import keras
 import os
+import numpy as np
 
 
-import agents.dqn
-import agents.ppo_a2c
+import agents.ddqn
+import agents.ddqn_duelling
+import agents.a2c_ppo
 import agents.a2c
 import agents.doudizhu_rule_models as doudizhu_rule_models
 import agents.random_agent as random_agent
@@ -54,7 +56,7 @@ import envs.simpledoudizhu as simpledoudizhu
 #here a config dictionary has to be set, depending on what is wanted. Georg
 
 config = {  'allow_step_back':False,
-            'allow_raw_data': False, 
+            'allow_raw_data': True, 
             'record_action': False,
             'seed': 42,
             'single_agent_mode': False,
@@ -69,8 +71,8 @@ eval_env = doudizhu.DoudizhuEnv(config)
 # Set the iterations numbers and how frequently we evaluate the performance
 
 # TODO: These are just dummy numbers Georg
-evaluate_every = 100
-evaluate_num = 100
+evaluate_every = 20
+evaluate_num = 20
 episode_num = 500000
 memory_init_size = 1000
 
@@ -81,7 +83,7 @@ train_every = 1
 # TODO: Find a better way to structure the loading and storing of the models
 # 
 
-log_dir = 'experiments/a2c/a1_try'
+log_dir = 'experiments/ddqn/a1_try'
 
 # Set a global seed
 set_global_seed(42)
@@ -93,9 +95,10 @@ global_step = tf.Variable(0, name='global_step', trainable=False)
 
 # uncomment the agent you want to use Georg
 
-agent = agents.a2c.Actor_Critic(action_num=eval_env.action_num)
-#agent = agents.dqn.DQNAgent(action_num=eval_env.action_num) 
-#agent = agents.ppo_a2c.Actor_Critic(action_num=eval_env.action_num)
+#agent = agents.a2c.Actor_Critic(action_num=eval_env.action_num)
+#agent = agents.ddqn.DQNAgent(action_num=eval_env.action_num)
+#agent = agents.ddqn_duelling.DQNAgent(action_num=eval_env.action_num)
+agent = agents.a2c_ppo.Actor_Critic(action_num=eval_env.action_num)
 
 random_agent = random_agent.RandomAgent(action_num=eval_env.action_num)
 rule_based_agent = doudizhu_rule_models.DouDizhuRuleAgentV1()
@@ -130,9 +133,6 @@ for episode in range(episode_num):
 
     # Feed transitions into agent memory, and train the agent
     for ts in trajectories[0]:
-        #print(trajectories[0])
-        #print(trajectories[1])
-        #print(trajectories[2])
         agent.feed(ts) 
 
     # Evaluate the performance. Play with random agents.
@@ -148,13 +148,12 @@ logger.close_files()
 
 # Plot the learning curve
 # TODO: restructure this
-logger.plot('A2C')
+logger.plot('ddqn')
 
 # Save model
-save_dir = 'models/PP0/'
+save_dir = 'models/ddqn/'
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
-
 
 
 # this safes the dqn models

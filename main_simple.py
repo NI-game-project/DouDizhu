@@ -39,7 +39,7 @@ import keras
 import os
 
 
-import agents.dqn
+import agents.ddqn
 import agents.a2c
 import agents.doudizhu_rule_models as doudizhu_rule_models
 import agents.random_agent as random_agent
@@ -89,7 +89,7 @@ global_step = tf.Variable(0, name='global_step', trainable=False)
 
 # uncomment the agent you want to use Georg
 
-agent = agents.dqn.DQNAgent(action_num=eval_env.action_num) 
+agent = agents.ddqn.DQNAgent(action_num=eval_env.action_num) 
 #agent = agents.actor_critic.Actor_Critic(action_num=eval_env.action_num)
 
 random_agent = random_agent.RandomAgent(action_num=eval_env.action_num)

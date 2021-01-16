@@ -190,6 +190,25 @@ class Env(object):
         trajectories = [[] for _ in range(self.player_num)]
         state, player_id = self.reset()
 
+        ############################### NEW STATE ENCODING (ONLY WORKS FOR LANDLORD, APPARENTLY HE ALWAYS STARTS)
+
+        # This will add an 22*3 array to the state
+        # 20 * (0,1) -> amount of cards
+        # last two digits landlord: 11 , peasant_1 = 10 , peasant_2 = 01
+        # THIS ONLY WORKS FOR THE LANDLORD BECAUSE OF THE ORDER 
+        # I CHANGED NOTHING BUT THE LINES WITHIN THE #########################'s
+
+        current_hand = [[] for _ in range(self.player_num)]
+        l_1 = [1,1]
+        p_1 = [1,0]
+        p_2 = [0,1]
+        current_hand[player_id].append(np.concatenate((np.ones(len(state['raw_obs']['initial_hand'])),l_1),axis=None))
+        current_hand[player_id + 1].append(np.concatenate((np.ones(17),np.zeros(3),p_1), axis=None))
+        current_hand[player_id + 2].append(np.concatenate((np.ones(17),np.zeros(3),p_2), axis=None))
+
+        state['obs'] = np.concatenate((state['obs'], current_hand), axis=None)
+        ############################### NEW STATE ENCODING (ONLY WORKS FOR LANDLORD, APPARENTLY HE ALWAYS STARTS)
+
         # Loop to play the game
         trajectories[player_id].append(state)
         while not self.is_over():
@@ -201,12 +220,25 @@ class Env(object):
 
             # Environment steps
             next_state, next_player_id = self.step(action, self.agents[player_id].use_raw)
+            ############################### NEW STATE ENCODING (ONLY WORKS FOR LANDLORD, APPARENTLY HE ALWAYS STARTS)
+            if action != 'pass':
+                if player_id == 0:
+                    current_hand[player_id] = np.concatenate((np.ones(len(next_state['raw_obs']['current_hand'])),np.zeros(20-len(next_state['raw_obs']['current_hand'])),l_1),axis=None)
+                if player_id == 1:
+                    current_hand[player_id] = np.concatenate((np.ones(len(next_state['raw_obs']['current_hand'])),np.zeros(20-len(next_state['raw_obs']['current_hand'])),p_1),axis=None)
+                if player_id == 2:
+                    current_hand[player_id] = np.concatenate((np.ones(len(next_state['raw_obs']['current_hand'])),np.zeros(20-len(next_state['raw_obs']['current_hand'])),p_2),axis=None)
+            ############################### NEW STATE ENCODING (ONLY WORKS FOR LANDLORD, APPARENTLY HE ALWAYS STARTS)    
+                
             # Save action
             trajectories[player_id].append(action)
 
             # Set the state and player
             state = next_state
             player_id = next_player_id
+            ############################### NEW STATE ENCODING (ONLY WORKS FOR LANDLORD, APPARENTLY HE ALWAYS STARTS)
+            state['obs'] = np.concatenate((state['obs'], current_hand),axis=None)
+            ############################### NEW STATE ENCODING (ONLY WORKS FOR LANDLORD, APPARENTLY HE ALWAYS STARTS)
 
             # Save state.
             if not self.game.is_over():
@@ -215,6 +247,9 @@ class Env(object):
         # Add a final state to all the players
         for player_id in range(self.player_num):
             state = self.get_state(player_id)
+            ############################### NEW STATE ENCODING (ONLY WORKS FOR LANDLORD, APPARENTLY HE ALWAYS STARTS)
+            state['obs'] = np.concatenate((state['obs'], current_hand),axis=None)
+            ############################### NEW STATE ENCODING (ONLY WORKS FOR LANDLORD, APPARENTLY HE ALWAYS STARTS)
             trajectories[player_id].append(state)
 
         # Payoffs
