@@ -113,7 +113,20 @@ class Actor_Critic():
         return A 
         
     def train(self):
+        '''
+        states, actions, rewards, _, _,_ = self.memory.sample()
+        values = self.critic(states)
+        action_one_hot = tf.one_hot(actions, self.action_num, on_value=1,off_value=0)
 
+        discounted_rewards = self.discounted_rewards(rewards)
+
+        advantages = discounted_rewards - tf.reshape(values,-1)
+        advantages = np.reshape(advantages, (-1,1))
+        
+        self.actor.fit(states, action_one_hot, sample_weight = advantages, batch_size=self.batch_size, verbose=0,epochs = 10)
+        self.critic.fit(states, discounted_rewards, batch_size=self.batch_size, verbose = 0)
+
+        '''
         for _ in range(self.epochs):
 
             states, actions, rewards, old_probs, old_values, dones = self.memory.sample()
@@ -147,7 +160,7 @@ class Actor_Critic():
 
             
             # maybe the normilazation of the advantages helps improve performance
-            advantages = (advantages - advantages.mean())/ advantages.std()
+            #advantages = (advantages - advantages.mean())/ (advantages.std() + 1e-7)
             
             
             for batch in batches:
@@ -162,14 +175,18 @@ class Actor_Critic():
                     value = self.critic(states[batch])
 
                     combined = advantage + old_value
-                    value_loss = K.mean(tf.losses.mse(combined, value))
-                    value_loss = 0.5 * tf.cast(value_loss, 'float32') 
+                    value_loss = K.mean(tf.losses.mse(combined, value)) 
+                    # Somewhere here must be a bug
+                    #value_loss = 0.5 * tf.cast(value_loss, 'float32') 
                     
-                    grads = tape_v.gradient(value_loss, self.critic.trainable_variables)
-                    self.optimizer.apply_gradients(zip(grads, self.critic.trainable_variables))
+                    grads_v = tape_v.gradient(value_loss, self.critic.trainable_variables)
+                    self.optimizer.apply_gradients(zip(grads_v, self.critic.trainable_variables))
 
+                    if self.total_t % self.train_every == 0:
+
+                        print(value)
                 with tf.GradientTape() as tape_p:
-
+                    
                     prob = self.actor(states[batch])
 
                     loss_clipping = 0.2
@@ -184,10 +201,10 @@ class Actor_Critic():
                     entropy_loss = - mean_entropy * entropy_coeff 
 
                     prob = tfp.distributions.Categorical(probs=prob)
-                    prob = prob.log_prob(action)
+                    prob = prob.log_prob(action + 1e-7)
 
                     old_prob = tfp.distributions.Categorical(probs=old_prob)
-                    old_prob = old_prob.log_prob(action)
+                    old_prob = old_prob.log_prob(action + 1e-7)
 
                     r = tf.math.exp(prob - old_prob)
                     p1 = r * advantage
@@ -197,8 +214,8 @@ class Actor_Critic():
                               
                     loss = policy_loss + entropy_loss #+ 0.5 * value_loss 
                     #print(policy_loss, 'policy \n', entropy_loss, 'entropy\n', value_loss, 'value\n')
-                    grads = tape_p.gradient(loss, self.actor.trainable_variables)
-                    self.optimizer.apply_gradients(zip(grads, self.actor.trainable_variables))
+                    grads_p = tape_p.gradient(loss, self.actor.trainable_variables)
+                    self.optimizer.apply_gradients(zip(grads_p, self.actor.trainable_variables))
                     
     def discounted_rewards(self, reward):
 

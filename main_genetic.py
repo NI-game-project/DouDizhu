@@ -12,7 +12,7 @@ import agents.doudizhu_rule_models
 import envs.doudizhu
 import envs.logger
 from envs.utils import set_global_seed, tournament
-import agents.dqn
+import agents.ddqn
 
 import pandas as pd
 
@@ -41,7 +41,7 @@ class Genetic_Algorithm():
         self.workers = []
         
         self.env = envs.doudizhu.DoudizhuEnv(self.config)
-        self.agent = agents.dqn.DQNAgent(action_num=self.env.action_num)
+        self.agent = agents.ddqn.DQNAgent(action_num=self.env.action_num)
         self.random_agent = agents.random_agent.RandomAgent(action_num=self.env.action_num)
         self.rule_based_agent = agents.doudizhu_rule_models.DouDizhuRuleAgentV1()
         
@@ -108,8 +108,9 @@ class Genetic_Algorithm():
     def mutate_population(self, elite_workers):
 
         self.workers = []
+        self.workers.append(elite_workers[-1])
 
-        for i in range(self.population_size):
+        for _ in range(self.population_size - 1):
 
             idx = random.randint(0,self.elite_workers_num-1)
             # This is also a hyperparameter and can be changed
