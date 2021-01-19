@@ -21,7 +21,7 @@ class Logger(object):
 
         self.txt_file = open(self.txt_path, 'w')
         self.csv_file = open(self.csv_path, 'w')
-        fieldnames = ['timestep', 'reward']
+        fieldnames = ['generation', 'reward', 'actor_loss', 'critic_loss', 'learning_rate', 'actions', 'predictions']
         self.writer = csv.DictWriter(self.csv_file, fieldnames=fieldnames)
         self.writer.writeheader()
 
@@ -34,17 +34,28 @@ class Logger(object):
         self.txt_file.flush()
         print(text)
 
-    def log_performance(self, timestep, reward):
+    def log_performance(self, timestep, reward, actor_loss, critic_loss, learning_rate, actions, predictions):
         ''' Log a point in the curve
         Args:
             timestep (int): the timestep of the current point
             reward (float): the reward of the current point
         '''
-        self.writer.writerow({'timestep': timestep, 'reward': reward})
+        self.writer.writerow({'generation': timestep,
+                             'reward': reward,
+                             'actor_loss': actor_loss,
+                             'critic_loss': critic_loss,
+                             'learning_rate': learning_rate,
+                             'actions': actions,
+                             'predictions': predictions})
         print('')
         self.log('----------------------------------------')
-        self.log('  timestep     |  ' + str(timestep))
+        self.log('  generation   |  ' + str(timestep))
         self.log('  reward       |  ' + str(reward))
+        self.log('  actor loss   |  ' + str(actor_loss))
+        self.log('  criic loss   |  ' + str(critic_loss))
+        self.log('  learningrate |  ' + str(learning_rate))
+        self.log('  actions      |  ' + str(actions))
+        self.log('  predictions  |  ' + str(predictions))
         self.log('----------------------------------------')
 
     def plot(self, algorithm):
@@ -68,11 +79,11 @@ def plot(csv_path, save_path, algorithm):
         xs = []
         ys = []
         for row in reader:
-            xs.append(int(row['timestep']))
+            xs.append(int(row['generation']))
             ys.append(float(row['reward']))
         fig, ax = plt.subplots()
         ax.plot(xs, ys, label=algorithm)
-        ax.set(xlabel='timestep', ylabel='reward')
+        ax.set(xlabel='generation', ylabel='reward')
         ax.legend()
         ax.grid()
 

@@ -71,9 +71,11 @@ eval_env = doudizhu.DoudizhuEnv(config)
 # Set the iterations numbers and how frequently we evaluate the performance
 
 # TODO: These are just dummy numbers Georg
-evaluate_every = 20
-evaluate_num = 20
-episode_num = 500000
+evaluate_every = 1000
+evaluate_num = 1000
+episode_num_random = 50_000
+episode_num_rule = 10_000_000
+save_every = 1_000_000
 memory_init_size = 1000
 
 # Train the agent every X steps
@@ -83,7 +85,8 @@ train_every = 1
 # TODO: Find a better way to structure the loading and storing of the models
 # 
 
-log_dir = 'experiments/ddqn/a1_try'
+log_dir_random = 'experiments/a2c/long_run/random'
+log_dir_rule_based = 'experiments/a2c/long_run/rule_based'
 
 # Set a global seed
 set_global_seed(42)
@@ -95,10 +98,10 @@ global_step = tf.Variable(0, name='global_step', trainable=False)
 
 # uncomment the agent you want to use Georg
 
-#agent = agents.a2c.Actor_Critic(action_num=eval_env.action_num)
+agent = agents.a2c.Actor_Critic(action_num=eval_env.action_num)
 #agent = agents.ddqn.DQNAgent(action_num=eval_env.action_num)
 #agent = agents.ddqn_duelling.DQNAgent(action_num=eval_env.action_num)
-agent = agents.a2c_ppo.Actor_Critic(action_num=eval_env.action_num)
+#agent = agents.a2c_ppo.Actor_Critic(action_num=eval_env.action_num)
 
 random_agent = random_agent.RandomAgent(action_num=eval_env.action_num)
 rule_based_agent = doudizhu_rule_models.DouDizhuRuleAgentV1()
@@ -116,17 +119,15 @@ rule_based_agent = doudizhu_rule_models.DouDizhuRuleAgentV1()
 
 
 env.set_agents([agent, random_agent, random_agent])
-
 eval_env.set_agents([agent, random_agent, random_agent])
 #eval_env.set_agents([agent, rule_based_agent, rule_based_agent])
 
 
 # Init a Logger to plot the learning curve
+logger_random = logger.Logger(log_dir_random)
+logger_rule_based = logger.Logger(log_dir_rule_based)
 
-# TODO: restructure this 
-logger = logger.Logger(log_dir)
-
-for episode in range(episode_num):
+for episode in range(episode_num_random):
 
     # Generate data from the environment
     trajectories, _ = env.run(is_training=True)
@@ -137,21 +138,54 @@ for episode in range(episode_num):
 
     # Evaluate the performance. Play with random agents.
     if episode % evaluate_every == 0:
-        logger.log_performance(env.timestep, tournament(eval_env, evaluate_num)[0])
-        print(episode)
+        logger_random.log_performance(episode, tournament(eval_env, evaluate_num)[0],\
+             agent.history_actor, agent.history_critic, agent.learning_rate, agent.actions, agent.predictions)
+        #print(episode)
         #print(tf.reduce_sum(agent.penalty))
         #print(agent.best_actions)
         #print(agent.actions)
 
+logger_random.close_files()
+logger_random.plot('A2C_long_run_random')
+
+
+
+env = doudizhu.DoudizhuEnv(config)
+eval_env = doudizhu.DoudizhuEnv(config)
+
+env.set_agents([agent, rule_based_agent, rule_based_agent])
+eval_env.set_agents([agent, rule_based_agent, rule_based_agent])
+
+for episode in range(episode_num_rule):
+
+    # Generate data from the environment
+    trajectories, _ = env.run(is_training=True)
+
+    # Feed transitions into agent memory, and train the agent
+    for ts in trajectories[0]:
+        agent.feed(ts) 
+
+    # Evaluate the performance. Play with random agents.
+    if episode % evaluate_every == 0:
+        logger_rule_based.log_performance(episode, tournament(eval_env, evaluate_num)[0],\
+             agent.history_actor, agent.history_critic, agent.learning_rate, agent.actions, agent.predictions)
+        #print(episode)
+        #print(tf.reduce_sum(agent.penalty))
+        #print(agent.best_actions)
+        #print(agent.actions)
+    
+    if episode % save_every == 0:
+        agent.actor.save(('models/a2c/actor_long_{}.h5').format(episode))
+        agent.critic.save(('models/a2c/critic_long_{}.h5').format(episode))
+        agent.learning_rate = agent.learning_rate * 0.5
+
+
 # Close files in the logger
-logger.close_files()
-
+logger_rule_based.close_files()
 # Plot the learning curve
-# TODO: restructure this
-logger.plot('ddqn')
-
+logger_rule_based.plot('A2C_long_run_rule_based')
 # Save model
-save_dir = 'models/ddqn/'
+save_dir = 'models/a2c/'
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 

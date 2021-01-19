@@ -39,8 +39,9 @@ class Actor_Critic():
         self.action_num = action_num
         self.train_every = train_every
         self.learning_rate = learning_rate
-        self.state_shape = (516) #(6,5,15)
+        self.state_shape = (6,5,15) #516
         self.replay_memory_size = replay_memory_size
+        
 
         # Total timesteps
         self.total_t = 0
@@ -60,6 +61,9 @@ class Actor_Critic():
         self.critic.compile(optimizer=self.optimizer, loss='mse')
         self.actor = self.create_actor(self.action_num, self.state_shape)
         self.actor.compile(loss='categorical_crossentropy', optimizer=self.optimizer)
+
+        self.history_actor = 0
+        self.history_critic = 0
         
     def feed(self, ts):
 
@@ -76,7 +80,7 @@ class Actor_Critic():
 
     def step(self, state):
 
-        A = self.predict(state['obs'])
+        A = self.predict(state['obs'].astype(np.float32))
         A = remove_illegal(A, state['legal_actions'])
         action = np.random.choice(np.arange(len(A)), p=A)
         
@@ -84,7 +88,7 @@ class Actor_Critic():
 
     def eval_step(self, state):
 
-        prediction = self.actor(np.expand_dims(state['obs'], 0))[0]
+        prediction = self.actor(np.expand_dims(state['obs'].astype(np.float32), 0))[0]
         probs = remove_illegal(np.exp(prediction), state['legal_actions'])
         best_action = np.argmax(probs)
         
@@ -94,7 +98,7 @@ class Actor_Critic():
 
         epsilon = self.epsilons[min(self.total_t, self.epsilon_decay_steps - 1)]
         A = np.ones(self.action_num, dtype=float) * epsilon / self.action_num
-        prediction = self.actor(np.expand_dims(state,0))[0]
+        prediction = self.actor(np.expand_dims(state.astype(np.float32),0))[0]
         best_action = np.argmax(prediction)
         A[best_action] += (1.0 - epsilon)
         
@@ -103,7 +107,9 @@ class Actor_Critic():
     def train(self):
         
         states, actions, rewards, _, _ = self.memory.sample()
-        values = self.critic(states)
+        values = self.critic(states.astype(np.float32))
+        predictions = self.actor(states.astype(np.float32))
+        predictions = np.argmax(predictions, axis=1)
         action_one_hot = tf.one_hot(actions, self.action_num, on_value=1,off_value=0)
 
         discounted_rewards = self.discounted_rewards(rewards)
@@ -111,10 +117,14 @@ class Actor_Critic():
         advantages = discounted_rewards - tf.reshape(values,-1)
         advantages = np.reshape(advantages, (-1,1))
         
-        self.actor.fit(states, action_one_hot, sample_weight = advantages, batch_size=self.batch_size, verbose=0,epochs = 10)
-        self.critic.fit(states, discounted_rewards, batch_size=self.batch_size, verbose = 0)
+        history_actor = self.actor.fit(states, action_one_hot, sample_weight = advantages, batch_size=self.batch_size, verbose=0,epochs = 10)
+        history_critic = self.critic.fit(states, discounted_rewards, batch_size=self.batch_size, verbose = 0, epochs = 10)
 
-    
+        self.history_actor = np.mean(history_actor.history['loss'])
+        self.history_critic = np.mean(history_critic.history['loss'])
+        self.actions = actions
+        self.predictions = predictions
+
     def discounted_rewards(self, reward):
 
         gamma = 0.993    # discount rate
@@ -143,6 +153,7 @@ class Actor_Critic():
         x = Flatten()(input_x)
         x = Dense(512,activation='relu')(x)
         x = Dense(512,activation='relu')(x)
+        x = Dense(1024,activation='relu')(x)
         output = Dense(action_num, activation='softmax')(x)
         network = keras.Model(inputs = input_x, outputs=output)
     
@@ -154,6 +165,7 @@ class Actor_Critic():
         x = Flatten()(input_x)
         x = Dense(512,activation='relu')(x)
         x = Dense(512,activation='relu')(x)
+        x = Dense(1024,activation='relu')(x)
         output = Dense(action_num)(x)
         network = keras.Model(inputs = input_x, outputs=output)
         
