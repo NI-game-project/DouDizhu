@@ -40,9 +40,6 @@ import os
 import numpy as np
 
 
-import agents.ddqn
-import agents.ddqn_duelling
-import agents.a2c_ppo
 import agents.a2c
 import agents.doudizhu_rule_models as doudizhu_rule_models
 import agents.random_agent as random_agent
