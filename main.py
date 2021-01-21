@@ -71,8 +71,8 @@ eval_env = doudizhu.DoudizhuEnv(config)
 evaluate_every = 1000
 evaluate_num = 1000
 episode_num_random = 50_000
-episode_num_rule = 10_000_000
-save_every = 1_000_000
+episode_num_rule = 1_000_000
+save_every = 100_000
 memory_init_size = 1000
 
 # Train the agent every X steps

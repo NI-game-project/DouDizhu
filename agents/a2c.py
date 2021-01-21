@@ -96,13 +96,13 @@ class Actor_Critic():
 
     def predict(self, state):
 
-        epsilon = self.epsilons[min(self.total_t, self.epsilon_decay_steps - 1)]
-        A = np.ones(self.action_num, dtype=float) * epsilon / self.action_num
-        prediction = self.actor(np.expand_dims(state.astype(np.float32),0))[0]
+        #epsilon = self.epsilons[min(self.total_t, self.epsilon_decay_steps - 1)]
+        #A = np.ones(self.action_num, dtype=float) * epsilon / self.action_num
+        prediction = self.actor(np.expand_dims(state.astype(np.float32),0))[0].numpy()
         best_action = np.argmax(prediction)
-        A[best_action] += (1.0 - epsilon)
+        prediction[best_action] += 1#(1.0 - epsilon)
         
-        return A 
+        return prediction 
         
     def train(self):
         
