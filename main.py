@@ -132,11 +132,11 @@ for episode in range(episode_num_random):
     # Feed transitions into agent memory, and train the agent
     for ts in trajectories[0]:
         agent.feed(ts) 
-
+        
     # Evaluate the performance. Play with random agents.
     if episode % evaluate_every == 0:
         logger_random.log_performance(episode, tournament(eval_env, evaluate_num)[0],\
-             agent.history_actor, agent.history_critic, agent.learning_rate, agent.actions, agent.predictions)
+             agent.history_actor, agent.history_critic, agent.optimizer._decayed_lr(tf.float32).numpy(), agent.actions, agent.predictions)
         #print(episode)
         #print(tf.reduce_sum(agent.penalty))
         #print(agent.best_actions)
@@ -165,7 +165,7 @@ for episode in range(episode_num_rule):
     # Evaluate the performance. Play with random agents.
     if episode % evaluate_every == 0:
         logger_rule_based.log_performance(episode, tournament(eval_env, evaluate_num)[0],\
-             agent.history_actor, agent.history_critic, agent.learning_rate, agent.actions, agent.predictions)
+             agent.history_actor, agent.history_critic, agent.optimizer._decayed_lr(tf.float32).numpy(), agent.actions, agent.predictions)
         #print(episode)
         #print(tf.reduce_sum(agent.penalty))
         #print(agent.best_actions)

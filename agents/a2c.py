@@ -28,7 +28,7 @@ class Actor_Critic():
                  state_shape=None,
                  train_every=256,
                  mlp_layers=None,
-                 learning_rate=0.0001):
+                 learning_rate=0.0005):
         
         self.use_raw = False
         self.replay_memory_init_size = replay_memory_init_size
@@ -55,7 +55,9 @@ class Actor_Critic():
 
         self.memory = Memory(self.replay_memory_size, self.batch_size)
 
-        self.optimizer = keras.optimizers.Adam(lr=self.learning_rate)
+        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.005, decay_steps=10000, decay_rate=0.95)
+
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
 
         self.critic = self.create_critic(1, self.state_shape)
         self.critic.compile(optimizer=self.optimizer, loss='mse')
