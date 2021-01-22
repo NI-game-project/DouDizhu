@@ -63,7 +63,7 @@ class DQNAgent(object):
                  state_shape=None,
                  train_every=1,
                  mlp_layers=None,
-                 learning_rate=0.0001):
+                 learning_rate=0.001):
 
         self.use_raw = False
         self.replay_memory_init_size = replay_memory_init_size
@@ -82,6 +82,7 @@ class DQNAgent(object):
         # Total training step
         self.train_t = 0
 
+
         # The epsilon decay scheduler
         self.epsilons = np.linspace(epsilon_start, epsilon_end, epsilon_decay_steps)
 
@@ -89,13 +90,19 @@ class DQNAgent(object):
         self.hidden = 512
         self.q_estimator = Network(action_num= self.action_num, hidden=self.state_shape)
         self.target_estimator = Network(action_num= self.action_num, hidden=self.state_shape)
+        
+        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.005, decay_steps=10000, decay_rate=0.95)
 
-        self.optimizer = keras.optimizers.Adam(learning_rate=self.learning_rate)
+        self.optimizer = keras.optimizers.Adam(learning_rate=lr_schedule)
 
         self.q_estimator.compile(self.optimizer, loss='mse')
         self.target_estimator.compile(self.optimizer)
 
         self.memory = Memory(replay_memory_size, batch_size)
+
+        self.history = 0
+        self.predictions = 0
+        self.actions = 0
 
     def feed(self, ts):
 
@@ -124,9 +131,12 @@ class DQNAgent(object):
     def predict(self, state):
 
         epsilon = self.epsilons[min(self.total_t, self.epsilon_decay_steps-1)]
-        A = np.ones(self.action_num, dtype=float) * epsilon / self.action_num
-        q_values = self.q_estimator.call_advantage(np.expand_dims(state, 0))[0]
+        #A = np.ones(self.action_num, dtype=float) * epsilon / self.action_num
+        q_values = self.q_estimator.call_advantage(np.expand_dims(state, 0))[0].numpy()
         best_action = np.argmax(q_values)
+        q_max = np.amax(q_values)
+        q_min = np.amin(q_values)
+        A = (q_values - q_min)/ (q_max -q_min)
         A[best_action] += (1.0 - epsilon)
         return A
 
@@ -136,10 +146,10 @@ class DQNAgent(object):
         
         q_pred = self.q_estimator(state_batch)
         q_next = self.target_estimator(next_state_batch).numpy()
-        q_target = q_pred.numpy()
+        q_target_c = q_pred.numpy()
 
         best_actions = tf.math.argmax(q_next, axis =1)
-
+        predictions = np.argmax(q_target_c, axis=1)
         '''
         penalty = np.zeros(self.batch_size)
         for i in range(self.batch_size):
@@ -148,9 +158,16 @@ class DQNAgent(object):
         '''
 
         # This is not so clear: maybe it should be action batch? 
-        q_target[np.arange(self.batch_size),best_actions] = reward_batch + self.gamma * q_next[np.arange(self.batch_size), best_actions] * np.invert(done_batch).astype(np.float32)
+        #q_target[np.arange(self.batch_size),best_actions] = reward_batch + self.gamma * q_next[np.arange(self.batch_size), best_actions] * np.invert(done_batch).astype(np.float32)
+        q_target = reward_batch + self.gamma * q_next[np.arange(self.batch_size), best_actions] * np.invert(done_batch).astype(np.float32)
+
+        history = self.q_estimator.fit(state_batch, q_target, batch_size=self.batch_size, verbose=0)
+
+        self.history = np.mean(history.history['loss'])
         
-        self.q_estimator.fit(state_batch, q_target, batch_size=self.batch_size, verbose=0)
+        self.actions = action_batch
+        self.predictions = predictions
+
         
         if self.train_t % self.update_target_estimator_every == 0:
             
