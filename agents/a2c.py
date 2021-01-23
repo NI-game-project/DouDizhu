@@ -28,7 +28,9 @@ class Actor_Critic():
                  state_shape=None,
                  train_every=256,
                  mlp_layers=None,
-                 learning_rate=0.0005):
+                 initial_learning_rate=0.005, 
+                 decay_steps=10000, 
+                 decay_rate=0.95):
         
         self.use_raw = False
         self.replay_memory_init_size = replay_memory_init_size
@@ -38,7 +40,6 @@ class Actor_Critic():
         self.batch_size = batch_size
         self.action_num = action_num
         self.train_every = train_every
-        self.learning_rate = learning_rate
         self.state_shape = (6,5,15) #516
         self.replay_memory_size = replay_memory_size
         
@@ -55,14 +56,18 @@ class Actor_Critic():
 
         self.memory = Memory(self.replay_memory_size, self.batch_size)
 
-        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.005, decay_steps=10000, decay_rate=0.95)
+        self.initial_learning_rate = initial_learning_rate
+        self.decay_steps = decay_steps
+        self.decay_rate = decay_rate
+
+        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(self.initial_learning_rate, self.decay_steps, self.decay_rate)
 
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
 
         self.critic = self.create_critic(1, self.state_shape)
         self.critic.compile(optimizer=self.optimizer, loss='mse')
         self.actor = self.create_actor(self.action_num, self.state_shape)
-        self.actor.compile(loss='categorical_crossentropy', optimizer=self.optimizer)
+        self.actor.compile(loss='mse', optimizer=self.optimizer)
 
         self.history_actor = 0
         self.history_critic = 0
@@ -102,7 +107,7 @@ class Actor_Critic():
         #A = np.ones(self.action_num, dtype=float) * epsilon / self.action_num
         prediction = self.actor(np.expand_dims(state.astype(np.float32),0))[0].numpy()
         best_action = np.argmax(prediction)
-        prediction[best_action] += 1#(1.0 - epsilon)
+        prediction[best_action] += 1 #(1.0 - epsilon)
         
         return prediction 
         

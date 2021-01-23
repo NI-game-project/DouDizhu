@@ -85,8 +85,8 @@ train_every = 1
 # TODO: Find a better way to structure the loading and storing of the models
 # 
 
-log_dir_random = 'experiments/ddqn/long_run/random'
-log_dir_rule_based = 'experiments/ddqn/long_run/rule_based'
+log_dir_random = 'experiments/a2c/long_run/random'
+log_dir_rule_based = 'experiments/a2c/long_run/rule_based'
 
 # Set a global seed
 set_global_seed(42)
@@ -98,9 +98,9 @@ global_step = tf.Variable(0, name='global_step', trainable=False)
 
 # uncomment the agent you want to use Georg
 
-#agent = agents.a2c.Actor_Critic(action_num=eval_env.action_num)
+agent = agents.a2c.Actor_Critic(action_num=eval_env.action_num)
 #agent = agents.ddqn.DQNAgent(action_num=eval_env.action_num)
-agent = agents.ddqn_duelling.DQNAgent(action_num=eval_env.action_num)
+#agent = agents.ddqn_duelling.DQNAgent(action_num=eval_env.action_num)
 #agent = agents.a2c_ppo.Actor_Critic(action_num=eval_env.action_num)
 
 random_agent = random_agent.RandomAgent(action_num=eval_env.action_num)
@@ -139,15 +139,15 @@ for episode in range(episode_num_random):
     # Evaluate the performance. Play with random agents.
     if episode % evaluate_every == 0:
         logger_random.log_performance(episode, tournament(eval_env, evaluate_num)[0],\
-             #agent.history_actor, agent.history_critic, agent.optimizer._decayed_lr(tf.float32).numpy(), agent.actions, agent.predictions)
-             agent.history, _, agent.optimizer._decayed_lr(tf.float32).numpy(), agent.actions, agent.predictions)
+             agent.history_actor, agent.history_critic, agent.optimizer._decayed_lr(tf.float32).numpy(), agent.actions, agent.predictions)
+             #agent.history, _, agent.optimizer._decayed_lr(tf.float32).numpy(), agent.actions, agent.predictions)
         #print(episode)
         #print(tf.reduce_sum(agent.penalty))
         #print(agent.best_actions)
         #print(agent.actions)
 
 logger_random.close_files()
-logger_random.plot('DDQN_long_run_random')
+logger_random.plot('A2C_long_run_random')
 
 env = doudizhu.DoudizhuEnv(config)
 eval_env = doudizhu.DoudizhuEnv(config)
@@ -167,24 +167,24 @@ for episode in range(episode_num_rule):
     # Evaluate the performance. Play with random agents.
     if episode % evaluate_every == 0:
         logger_rule_based.log_performance(episode, tournament(eval_env, evaluate_num)[0],\
-             #agent.history_actor, agent.history_critic, agent.optimizer._decayed_lr(tf.float32).numpy(), agent.actions, agent.predictions)
-             agent.history, _, agent.optimizer._decayed_lr(tf.float32).numpy(), agent.actions, agent.predictions)
+             agent.history_actor, agent.history_critic, agent.optimizer._decayed_lr(tf.float32).numpy(), agent.actions, agent.predictions)
+             #agent.history, _, agent.optimizer._decayed_lr(tf.float32).numpy(), agent.actions, agent.predictions)
         #print(episode)
         #print(tf.reduce_sum(agent.penalty))
         #print(agent.best_actions)
         #print(agent.actions)
     
     if episode % save_every == 0:
-        #agent.actor.save(('models/ddqn/actor_long_{}.h5').format(episode))
-        #agent.critic.save(('models/ddqn/critic_long_{}.h5').format(episode))
-        agent.q_estimator.save(('models/ddqn/long_{}.h5').format(episode))
+        agent.actor.save(('models/ddqn/actor_long_{}.h5').format(episode))
+        agent.critic.save(('models/ddqn/critic_long_{}.h5').format(episode))
+        #agent.q_estimator.save(('models/ddqn/long_{}.h5').format(episode))
 
 # Close files in the logger
 logger_rule_based.close_files()
 # Plot the learning curve
-logger_rule_based.plot('DDQN_long_run_rule_based')
+logger_rule_based.plot('A2C_long_run_rule_based')
 # Save model
-save_dir = 'models/ddqn/'
+save_dir = 'models/a2c/'
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 
