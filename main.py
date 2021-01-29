@@ -71,8 +71,8 @@ eval_env = doudizhu.DoudizhuEnv(config)
 # Set the iterations numbers and how frequently we evaluate the performance
 
 # TODO: These are just dummy numbers Georg
-evaluate_every = 1000
-evaluate_num = 1000
+evaluate_every = 100
+evaluate_num = 100
 episode_num_random = 50_000
 episode_num_rule = 1_000_000
 save_every = 100_000
@@ -121,6 +121,10 @@ rule_based_agent = doudizhu_rule_models.DouDizhuRuleAgentV1()
 env.set_agents([agent, random_agent, random_agent])
 eval_env.set_agents([agent, random_agent, random_agent])
 #eval_env.set_agents([agent, rule_based_agent, rule_based_agent])
+
+env.set_agents([agent, rule_based_agent, rule_based_agent])
+eval_env.set_agents([agent, rule_based_agent, rule_based_agent])
+
 
 
 # Init a Logger to plot the learning curve
